@@ -1,5 +1,6 @@
 # PikPak Assistant
-修改自-https://greasyfork.org/zh-CN/scripts/549418-pikpak-batch-jav-renamer-assistant
+修改自-- [PikPak 批量番号重命名助手](https://greasyfork.org/zh-CN/scripts/549418-pikpak-batch-jav-renamer-assistant))
+
 PikPak 网页端批量处理助手，专注三件事：
 
 - 扫描番号并重命名
