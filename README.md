@@ -18,10 +18,6 @@ PikPak 网页端批量处理助手，专注三件事：
 2. 用油猴 / Tampermonkey 安装
 3. 进入 `mypikpak.com`、`mypikpak.net` 或 `pikpak.me`
 
-也可以直接在仓库里查看脚本文件：
-
-- [PikPak Assistant.user.js](./PikPak%20Assistant.user.js)
-
 ## 使用
 
 ### 1. 扫描番号并重命名
