@@ -1,4 +1,4 @@
-# PikPak Batch JAV Renamer Assistant 0.1.3 UTF-8 干净版使用说明
+# PikPak Assistant 使用说明
 
 ## 简介
 
