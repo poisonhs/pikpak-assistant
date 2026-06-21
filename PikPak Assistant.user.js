@@ -2,7 +2,8 @@
 // @name         PikPak Batch JAV Renamer Assistant
 // @name:en      PikPak Batch JAV Renamer Assistant
 // @name:ja      PikPak Batch JAV Renamer Assistant
-// @name:zh-CN   PikPak 鎵归噺鐣彿閲嶅懡鍚嶄笌灏忔枃浠舵竻鐞嗗姪鎵?// @name:zh-TW   PikPak 鎵归噺鐣櫉閲嶆柊鍛藉悕鑸囧皬妾旀娓呯悊鍔╂墜
+// @name:zh-CN   PikPak 批量番号重命名与小文件清理助手
+// @name:zh-TW   PikPak 批量番號重新命名與小檔案清理助手
 // @name:ko      PikPak Batch JAV Renamer Assistant
 // @name:ru      PikPak Batch JAV Renamer Assistant
 // @name:es      PikPak Renombrador JAV por lotes
@@ -14,9 +15,11 @@
 // @description  Batch rename video files and folders with JAV codes in PikPak.
 // @description:en Batch rename video files and folders with JAV codes in PikPak.
 // @description:ja Batch rename JAV files in PikPak and clean up small files.
-// @description:zh-CN 鍦?PikPak 涓壒閲忛噸鍛藉悕 JAV 鏂囦欢锛屽苟鐙珛娓呯悊灏忎簬 100MB 鐨勫皬鏂囦欢銆?// @description:zh-TW 鍦?PikPak 涓壒閲忛噸鏂板懡鍚?JAV 妾旀锛屼甫鐛ㄧ珛娓呯悊灏忔柤 100MB 鐨勫皬妾旀銆?// @description:ko Batch rename JAV files in PikPak and clean up small files.
+// @description:zh-CN 在 PikPak 中批量重命名 JAV 文件，并独立清理小于 100MB 的小文件。
+// @description:zh-TW 在 PikPak 中批量重新命名 JAV 檔案，並獨立清理小於 100MB 的小檔案。
+// @description:ko Batch rename JAV files in PikPak and clean up small files.
 // @description:ru Batch rename JAV files in PikPak and clean up small files.
-// @description:es Renombrar archivos JAV por lotes en PikPak y limpiar archivos peque帽os.
+// @description:es Renombrar archivos JAV por lotes en PikPak y limpiar archivos pequeños.
 // @description:pt-BR Renomear arquivos JAV em lote no PikPak e limpar arquivos pequenos.
 // @description:fr Renommer les fichiers JAV par lots dans PikPak et nettoyer les petits fichiers.
 // @description:de JAV-Dateien in PikPak stapelweise umbenennen und kleine Dateien bereinigen.
@@ -46,7 +49,7 @@
     const { useState, useEffect } = preactHooks;
     const html = htm.bind(h);
 
-    // 鈹€鈹€鈹€ Parser (ported from bangou/parser/parser.go) 鈹€鈹€鈹€
+    // ─── Parser (ported from bangou/parser/parser.go) ───
 
     const sitePrefixRe = /^([a-zA-Z0-9.-]+)@/;
     const tokenizeRe = /[^a-zA-Z0-9]+/;
@@ -223,7 +226,7 @@
         return res;
     }
 
-    // 鈹€鈹€鈹€ PikPak API 鈹€鈹€鈹€
+    // ─── PikPak API ───
 
     function getHeader() {
         let token = '', captcha = '';
@@ -301,7 +304,7 @@
         });
     }
 
-    // 鈹€鈹€鈹€ AV-wiki Query 鈹€鈹€鈹€
+    // ─── AV-wiki Query ───
 
     function httpRequest(opts) {
         return new Promise((resolve, reject) => {
@@ -491,48 +494,48 @@
         throw new Error('Not found');
     }
 
-    // 鈹€鈹€鈹€ Config 鈹€鈹€鈹€
+    // ─── Config ───
 
     const CONFIG_KEY = 'pikpak-batch-renamer-config';
     const defaultConfig = { addDatePrefix: false, fixFileExtension: true, sortBy: 'name', sortDir: 'asc' };
     const getConfig = () => { try { return { ...defaultConfig, ...JSON.parse(localStorage.getItem(CONFIG_KEY)) }; } catch { return { ...defaultConfig }; } };
     const setConfig = c => localStorage.setItem(CONFIG_KEY, JSON.stringify(c));
 
-    // 鈹€鈹€鈹€ i18n 鈹€鈹€鈹€
+    // ─── i18n ───
 
     const i18n = {
         zh: {
-            batchRename: '鎵归噺閲嶅懡鍚?,
-            batchRenameFiles: '鎵归噺閲嶅懡鍚嶆枃浠?,
-            confirmRename: '纭閲嶅懡鍚?,
-            renameComplete: '閲嶅懡鍚嶅畬鎴?,
-            selectAll: '鍏ㄩ€?,
-            name: '鍚嶇О',
-            createdTime: '鍒涘缓鏃堕棿',
-            modifiedTime: '淇敼鏃堕棿',
-            size: '澶у皬',
-            asc: '鍗囧簭',
-            desc: '闄嶅簭',
-            selectFiles: '璇烽€夋嫨鏂囦欢',
-            scanning: '鎵弿涓?..',
-            scanCodes: '鎵弿鐣彿',
-            config: '閰嶇疆閫夐」',
-            addDatePrefix: '鍦ㄦ枃浠跺悕寮€澶村鍔犲彂琛屾棩鏈?,
-            addDatePrefixDesc: '鍚敤鍚庢枃浠跺悕鏍煎紡涓? 2025-09-12 鏍囬鍚嶇О.mp4',
-            fixExt: '淇鏂囦欢鎵╁睍鍚?,
-            fixExtDesc: '褰撴枃浠剁己灏戞墿灞曞悕鏃讹紝鏍规嵁鏂囦欢鍚嶄俊鎭嚜鍔ㄨˉ鍏?,
-            aboutToRename: n => `鍗冲皢閲嶅懡鍚?${n} 涓枃浠讹紝璇风‘璁ゅ悗缁х画銆俙,
-            original: '鍘熷悕',
-            newName: '鏂板悕',
-            progress: (cur, total) => `閲嶅懡鍚嶈繘搴? ${cur}/${total}`,
-            cancel: '鍙栨秷',
-            next: '涓嬩竴姝?,
-            back: '涓婁竴姝?,
-            confirming: '纭閲嶅懡鍚?,
-            renaming: '閲嶅懡鍚嶄腑...',
-            resultSummary: (s, f, t) => `閲嶅懡鍚嶅畬鎴愶紒鎴愬姛: ${s}, 澶辫触: ${f}, 鎬昏: ${t}`,
-            failedFiles: '澶辫触鐨勬枃浠?',
-            renameFailed: code => `閲嶅懡鍚嶅け璐?(${code})`,
+            batchRename: '批量重命名',
+            batchRenameFiles: '批量重命名文件',
+            confirmRename: '确认重命名',
+            renameComplete: '重命名完成',
+            selectAll: '全选',
+            name: '名称',
+            createdTime: '创建时间',
+            modifiedTime: '修改时间',
+            size: '大小',
+            asc: '升序',
+            desc: '降序',
+            selectFiles: '请选择文件',
+            scanning: '扫描中...',
+            scanCodes: '扫描番号',
+            config: '配置选项',
+            addDatePrefix: '在文件名开头增加发行日期',
+            addDatePrefixDesc: '启用后文件名格式为: 2025-09-12 标题名称.mp4',
+            fixExt: '修复文件扩展名',
+            fixExtDesc: '当文件缺少扩展名时，根据文件名信息自动补充',
+            aboutToRename: n => `即将重命名 ${n} 个文件，请确认后继续。`,
+            original: '原名',
+            newName: '新名',
+            progress: (cur, total) => `重命名进度: ${cur}/${total}`,
+            cancel: '取消',
+            next: '下一步',
+            back: '上一步',
+            confirming: '确认重命名',
+            renaming: '重命名中...',
+            resultSummary: (s, f, t) => `重命名完成！成功: ${s}, 失败: ${f}, 总计: ${t}`,
+            failedFiles: '失败的文件:',
+            renameFailed: code => `重命名失败 (${code})`,
         },
         en: {
             batchRename: 'Batch Rename',
@@ -570,24 +573,24 @@
     };
 
     Object.assign(i18n.zh, {
-        confirmRename: '纭閲嶅懡鍚?,
-        renameComplete: '閲嶅懡鍚嶅畬鎴?,
-        confirmCleanup: '纭娓呯悊灏忔枃浠?,
-        cleanupComplete: '娓呯悊瀹屾垚',
-        cleanupSmallFiles: '娓呯悊灏忔枃浠?,
-        smallFileRule: size => '鈥滄竻鐞嗗皬鏂囦欢鈥濅細鍗曠嫭绛涘嚭灏忎簬 ' + size + ' 鐨勬櫘閫氭枃浠讹紝骞跺湪纭鍚庣Щ鍏ュ洖鏀剁珯銆?,
-        aboutToTrash: count => '鍗冲皢鍒犻櫎 ' + count + ' 涓皬鏂囦欢锛岃纭鍚庣户缁€?,
-        renameSection: '寰呴噸鍛藉悕鏂囦欢',
-        trashSection: '寰呭垹闄ゆ枃浠?,
-        trashPending: '灏嗙Щ鍏ュ洖鏀剁珯',
-        progress: (cur, total) => '澶勭悊杩涘害: ' + cur + '/' + total,
-        confirming: '纭鎵ц',
-        renaming: '澶勭悊涓?..',
-        renameResultSummary: rename => '閲嶅懡鍚嶅畬鎴愩€傛垚鍔?' + rename.success + '锛屽け璐?' + rename.failed + '锛屾€昏 ' + rename.total + '銆?,
-        cleanupResultSummary: trash => '娓呯悊瀹屾垚銆傛垚鍔?' + trash.success + '锛屽け璐?' + trash.failed + '锛屾€昏 ' + trash.total + '銆?,
-        noRenameTargets: '褰撳墠閫変腑鐨勯」鐩噷娌℃湁鎵弿鍒板彲閲嶅懡鍚嶇殑鐣彿鏂囦欢銆?,
-        noSmallFiles: '褰撳墠閫変腑鐨勬枃浠舵垨鏂囦欢澶归噷娌℃湁灏忎簬 100MB 鐨勬櫘閫氭枃浠躲€?,
-        trashFailed: code => '鍒犻櫎澶辫触 (' + code + ')',
+        confirmRename: '确认重命名',
+        renameComplete: '重命名完成',
+        confirmCleanup: '确认清理小文件',
+        cleanupComplete: '清理完成',
+        cleanupSmallFiles: '清理小文件',
+        smallFileRule: size => '“清理小文件”会单独筛出小于 ' + size + ' 的普通文件，并在确认后移入回收站。',
+        aboutToTrash: count => '即将删除 ' + count + ' 个小文件，请确认后继续。',
+        renameSection: '待重命名文件',
+        trashSection: '待删除文件',
+        trashPending: '将移入回收站',
+        progress: (cur, total) => '处理进度: ' + cur + '/' + total,
+        confirming: '确认执行',
+        renaming: '处理中...',
+        renameResultSummary: rename => '重命名完成。成功 ' + rename.success + '，失败 ' + rename.failed + '，总计 ' + rename.total + '。',
+        cleanupResultSummary: trash => '清理完成。成功 ' + trash.success + '，失败 ' + trash.failed + '，总计 ' + trash.total + '。',
+        noRenameTargets: '当前选中的项目里没有扫描到可重命名的番号文件。',
+        noSmallFiles: '当前选中的文件或文件夹里没有小于 100MB 的普通文件。',
+        trashFailed: code => '删除失败 (' + code + ')',
     });
     Object.assign(i18n.en, {
         confirmRename: 'Confirm Rename',
@@ -610,17 +613,17 @@
         trashFailed: code => 'Trash failed (' + code + ')',
     });
     Object.assign(i18n.zh, {
-        flattenSubfolders: '鎷嗗垎瀛愭枃浠跺す',
-        confirmFlatten: '纭鎷嗗垎瀛愭枃浠跺す',
-        flattenComplete: '鎷嗗垎瀹屾垚',
-        aboutToFlatten: (moveCount, folderCount, conflictCount) => '鍗冲皢绉诲姩 ' + moveCount + ' 涓枃浠讹紝鍒犻櫎 ' + folderCount + ' 涓┖瀛愭枃浠跺す锛岃烦杩?' + conflictCount + ' 涓啿绐佹枃浠躲€?,
-        flattenMoveSection: '灏嗙Щ鍔ㄥ埌姣嶆枃浠跺す鐨勬枃浠?,
-        flattenDeleteSection: '灏嗗垹闄ょ殑绌哄瓙鏂囦欢澶?,
-        flattenConflictSection: '灏嗚烦杩囩殑鍐茬獊鏂囦欢',
-        noFlattenTargets: '褰撳墠閫変腑鐨勬枃浠跺す閲屾病鏈夊彲鎷嗗垎鐨勫瓙鏂囦欢澶瑰唴瀹广€?,
-        flattenResultSummary: flatten => '鎷嗗垎瀹屾垚銆傜Щ鍔ㄦ垚鍔?' + flatten.moveSuccess + '锛岀Щ鍔ㄥけ璐?' + flatten.moveFailed + '锛屽垹闄ょ┖鏂囦欢澶规垚鍔?' + flatten.folderDeleteSuccess + '锛屽垹闄ょ┖鏂囦欢澶瑰け璐?' + flatten.folderDeleteFailed + '锛岃烦杩囧啿绐?' + flatten.conflictSkipped + '銆?,
-        moveFailed: code => '绉诲姩澶辫触 (' + code + ')',
-        deleteFolderFailed: code => '鍒犻櫎绌烘枃浠跺す澶辫触 (' + code + ')',
+        flattenSubfolders: '拆分子文件夹',
+        confirmFlatten: '确认拆分子文件夹',
+        flattenComplete: '拆分完成',
+        aboutToFlatten: (moveCount, folderCount, conflictCount) => '即将移动 ' + moveCount + ' 个文件，删除 ' + folderCount + ' 个空子文件夹，跳过 ' + conflictCount + ' 个冲突文件。',
+        flattenMoveSection: '将移动到母文件夹的文件',
+        flattenDeleteSection: '将删除的空子文件夹',
+        flattenConflictSection: '将跳过的冲突文件',
+        noFlattenTargets: '当前选中的文件夹里没有可拆分的子文件夹内容。',
+        flattenResultSummary: flatten => '拆分完成。移动成功 ' + flatten.moveSuccess + '，移动失败 ' + flatten.moveFailed + '，删除空文件夹成功 ' + flatten.folderDeleteSuccess + '，删除空文件夹失败 ' + flatten.folderDeleteFailed + '，跳过冲突 ' + flatten.conflictSkipped + '。',
+        moveFailed: code => '移动失败 (' + code + ')',
+        deleteFolderFailed: code => '删除空文件夹失败 (' + code + ')',
     });
     Object.assign(i18n.en, {
         flattenSubfolders: 'Flatten Subfolders',
@@ -639,11 +642,11 @@
     const lang = (navigator.language || '').startsWith('zh') ? 'zh' : 'en';
     const t = key => i18n[lang][key];
 
-    // 鈹€鈹€鈹€ Styles 鈹€鈹€鈹€
+    // ─── Styles ───
 
     const colors = { primary: '#303133', secondary: '#606266', success: '#67c23a', danger: '#f56c6c', warning: '#e6a23c', blue: '#409eff' };
 
-    // 鈹€鈹€鈹€ Components 鈹€鈹€鈹€
+    // ─── Components ───
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -688,7 +691,7 @@
     }
 
     function FileItem({ file, selected, onSelect, status, newName, sortBy }) {
-        const icons = { valid: '鉁?, invalid: '鉂?, loading: '鈴?, delete: '馃棏锔? };
+        const icons = { valid: '✅', invalid: '❌', loading: '⏳', delete: '🗑️' };
         const formatInfo = f => {
             if (sortBy === 'size') return getFileSize(f) > 0 ? formatBytes(getFileSize(f)) : '';
             if (sortBy === 'created_time' || sortBy === 'modified_time') return f[sortBy] ? new Date(f[sortBy]).toLocaleString() : '';
@@ -698,10 +701,10 @@
             <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;opacity:${status === 'invalid' ? 0.5 : 1}">
                 <input type="checkbox" checked=${selected} onChange=${e => onSelect(file.id, e.target.checked)}
                     disabled=${status === 'invalid'} style="margin-right:10px" />
-                <span style="margin-right:8px">${file.kind === 'drive#folder' ? '馃搧' : '馃搫'}</span>
+                <span style="margin-right:8px">${file.kind === 'drive#folder' ? '📁' : '📄'}</span>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:500;word-break:break-word">${file.name}</div>
-                    ${newName && html`<div style="font-size:12px;color:${colors.success};margin-top:2px;word-break:break-word">鈫?${newName}</div>`}
+                    ${newName && html`<div style="font-size:12px;color:${colors.success};margin-top:2px;word-break:break-word">→ ${newName}</div>`}
                     ${status === 'delete' && html`<div style="font-size:12px;color:${colors.danger};margin-top:2px;word-break:break-word">${t('trashPending')}</div>`}
                 </div>
                 <span style="margin-left:16px;font-size:12px;color:${colors.secondary};white-space:nowrap">${formatInfo(file)}</span>
@@ -1090,7 +1093,7 @@
 
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #ebeef5;padding-bottom:16px">
                         <h2 style="margin:0;font-size:18px">${results ? (results.mode === 'cleanup' ? t('cleanupComplete') : results.mode === 'flatten' ? t('flattenComplete') : t('renameComplete')) : confirm ? (mode === 'cleanup' ? t('confirmCleanup') : mode === 'flatten' ? t('confirmFlatten') : t('confirmRename')) : t('batchRenameFiles')}</h2>
-                        <button onClick=${reset} style="background:none;border:none;font-size:24px;cursor:pointer;color:${colors.secondary}">脳</button>
+                        <button onClick=${reset} style="background:none;border:none;font-size:24px;cursor:pointer;color:${colors.secondary}">×</button>
                     </div>
 
                     <div style="flex:1;overflow-y:auto">
