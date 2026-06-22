@@ -3,7 +3,7 @@
 // @name:en      PikPak Batch JAV Renamer Assistant
 // @name:ja      PikPak Batch JAV Renamer Assistant
 // @name:zh-CN   PikPak 批量番号重命名与小文件清理助手
-// @name:zh-TW   PikPak 批量番號重新命名與小檔案清理助手
+// @name:zh-TW   PikPak 批次番號重新命名與小檔案清理助手
 // @name:ko      PikPak Batch JAV Renamer Assistant
 // @name:ru      PikPak Batch JAV Renamer Assistant
 // @name:es      PikPak Renombrador JAV por lotes
@@ -16,7 +16,7 @@
 // @description:en Batch rename video files and folders with JAV codes in PikPak.
 // @description:ja Batch rename JAV files in PikPak and clean up small files.
 // @description:zh-CN 在 PikPak 中批量重命名 JAV 文件，并独立清理小于 100MB 的小文件。
-// @description:zh-TW 在 PikPak 中批量重新命名 JAV 檔案，並獨立清理小於 100MB 的小檔案。
+// @description:zh-TW 在 PikPak 中批次重新命名 JAV 檔案，並獨立清理小於 100MB 的小檔案。
 // @description:ko Batch rename JAV files in PikPak and clean up small files.
 // @description:ru Batch rename JAV files in PikPak and clean up small files.
 // @description:es Renombrar archivos JAV por lotes en PikPak y limpiar archivos pequeños.
@@ -49,7 +49,7 @@
     const { useState, useEffect } = preactHooks;
     const html = htm.bind(h);
 
-    // ─── Parser (ported from bangou/parser/parser.go) ───
+    // --- Parser (ported from bangou/parser/parser.go) ---
 
     const sitePrefixRe = /^([a-zA-Z0-9.-]+)@/;
     const tokenizeRe = /[^a-zA-Z0-9]+/;
@@ -119,11 +119,12 @@
     }
 
     function extractExt(filename) {
-        const m = filename.match(/\.([a-z0-9]{2,5})$/i);
-        if (!m) return { ext: '', base: filename };
+        const normalizedName = (filename || '').trim();
+        const m = normalizedName.match(/[.。．｡]([a-z0-9]{2,5})$/i);
+        if (!m) return { ext: '', base: normalizedName };
         if (partTokenRe.test(m[1])) return { ext: '', base: filename }; // ".part1" is a split marker, not extension
         const ext = '.' + m[1].toLowerCase();
-        return { ext, base: filename.substring(0, filename.length - ext.length) };
+        return { ext, base: normalizedName.substring(0, normalizedName.length - m[1].length - 1) };
     }
 
     function isLikelyWrappedCode(nameLower, number) {
@@ -224,6 +225,351 @@
             candidates: candidates.map(c => ({ idx: c.idx, raw: c.raw, number: c.number, rawNumber: c.rawNumber, score: c.score })),
         });
         return res;
+    }
+
+    const renameKeywordDefinitions = [
+        { label: '黑丝', aliases: ['黑丝', '黑絲襪', 'blackstockings'] },
+        { label: '丝袜', aliases: ['丝袜', '絲襪'] },
+        { label: '白丝', aliases: ['白丝', '白絲襪'] },
+        { label: '肉丝', aliases: ['肉丝', '肉絲襪'] },
+        { label: '渔网', aliases: ['渔网', '漁網', '網襪'] },
+        { label: '过膝袜', aliases: ['过膝袜', '過膝襪', '膝上襪'] },
+        { label: '水着', aliases: ['水着', '泳装', '泳裝'] },
+        { label: '女仆', aliases: ['女仆', '女僕', 'maid'] },
+        { label: 'Cosplay', aliases: ['cosplay'] },
+        { label: '眼镜娘', aliases: ['眼镜娘', '眼鏡娘'] },
+        { label: '校服', aliases: ['校服', '制服'] },
+        { label: '和服', aliases: ['和服', '浴衣'] },
+        { label: '运动装', aliases: ['运动装', '運動裝', '体操服', '體操服'] },
+        { label: '兽耳', aliases: ['兽耳', '獸耳'] },
+        { label: '旗袍', aliases: ['旗袍'] },
+        { label: '吊带袜', aliases: ['吊带袜', '吊帶襪'] },
+        { label: '婚纱', aliases: ['婚纱', '婚紗'] },
+        { label: '兔女郎', aliases: ['兔女郎', 'bunnygirl'] },
+        { label: '黑肉', aliases: ['黑肉'] },
+        { label: '美腿', aliases: ['美腿'] },
+        { label: '白虎', aliases: ['白虎'] },
+        { label: '娇小', aliases: ['娇小', '嬌小'] },
+        { label: '长身', aliases: ['长身', '長身', '高挑'] },
+        { label: '美尻', aliases: ['美尻'] },
+        { label: '熟女', aliases: ['熟女'] },
+        { label: '软体', aliases: ['软体', '軟體'] },
+        { label: '纹身', aliases: ['纹身', '紋身', '刺青'] },
+        { label: '巨乳', aliases: ['巨乳'] },
+        { label: '贫乳', aliases: ['贫乳', '貧乳'] },
+        { label: '短发', aliases: ['短发', '短髮'] },
+        { label: '长发', aliases: ['长发', '長髮'] },
+        { label: '少女', aliases: ['少女'] },
+        { label: '颜射', aliases: ['颜射', '顏射'] },
+        { label: '潮吹', aliases: ['潮吹'] },
+        { label: '口交', aliases: ['口交', 'フェラ'] },
+        { label: '脚交', aliases: ['脚交', '足交'] },
+        { label: '深喉', aliases: ['深喉'] },
+        { label: '乳交', aliases: ['乳交'] },
+        { label: '肛交', aliases: ['肛交'] },
+        { label: '接吻', aliases: ['接吻', '舌吻', 'kiss'] },
+        { label: '中出', aliases: ['中出'] },
+        { label: '痉挛', aliases: ['痉挛', '痙攣'] },
+        { label: '高潮', aliases: ['高潮', 'アクメ', '絶頂', '絶頂き', 'イキ'] },
+        { label: '口爆', aliases: ['口爆', '口內射精'] },
+        { label: '露出', aliases: ['露出'] },
+        { label: '缚绑', aliases: ['缚绑', '縛綁', '捆绑', '捆綁', 'bondage'] },
+        { label: '男M', aliases: ['男m', 'm男'] },
+        { label: '放尿', aliases: ['放尿', '圣水', '聖水'] },
+        { label: '凌辱', aliases: ['凌辱', '犯した', '犯され', '犯●れて', 'レイプ'] },
+        { label: '集团追奸', aliases: ['集团追奸', '集團追奸', '轮奸', '輪姦'] },
+        { label: '瞬间插入', aliases: ['瞬间插入', '瞬間插入'] },
+        { label: '泥醉', aliases: ['泥醉'] },
+        { label: '按摩', aliases: ['按摩', 'マッサージ'] },
+        { label: '一日十回', aliases: ['一日十回'] },
+        { label: '逆犯', aliases: ['逆犯'] },
+        { label: '痴汉', aliases: ['痴汉', '痴漢'] },
+        { label: '泡姬', aliases: ['泡姬', 'soapland'] },
+        { label: '多P', aliases: ['多p', '多人'] },
+        { label: '3P', aliases: ['3p'] },
+        { label: '调教', aliases: ['调教', '調教'] },
+        { label: '痴女', aliases: ['痴女'] },
+        { label: '母乳', aliases: ['母乳'] },
+        { label: '刑具', aliases: ['刑具'] },
+        { label: '黑人', aliases: ['黑人'] },
+        { label: '童贞', aliases: ['童贞', '童貞'] },
+        { label: '巨根', aliases: ['巨根', 'デカチン'] },
+        { label: '巨汉', aliases: ['巨汉', '巨漢'] },
+        { label: '催眠', aliases: ['催眠'] },
+        { label: '丑男', aliases: ['丑男', '醜男'] },
+        { label: '时间停止', aliases: ['时间停止', '時間停止'] },
+        { label: '媚药', aliases: ['媚药', '媚藥'] },
+        { label: '偷拍', aliases: ['偷拍', '盗撮'] },
+        { label: '自拍', aliases: ['自拍', 'ハメ撮り', '自撮り'] },
+        { label: '性爱', aliases: ['性爱', 'セックス', 'FUCK'] },
+        { label: '羞耻', aliases: ['羞耻', '羞恥'] },
+        { label: '腰技', aliases: ['腰技', '腰使い'] },
+        { label: '诱惑', aliases: ['诱惑', '誘惑'] },
+        { label: '复仇', aliases: ['复仇', '復仇'] },
+        { label: '女上司', aliases: ['女上司', '上司'] },
+        { label: '夫目前犯', aliases: ['夫目前犯'] },
+        { label: '下雨天', aliases: ['下雨天', '雨天'] },
+        { label: '亲属', aliases: ['亲属', '親屬', '近亲', '近親'] },
+        { label: '年龄差', aliases: ['年龄差', '年齡差'] },
+        { label: '出轨', aliases: ['出轨', '出軌'] },
+        { label: 'NTR', aliases: ['ntr'] },
+        { label: '风俗娘', aliases: ['风俗娘', '風俗娘'] },
+        { label: '老师', aliases: ['老师', '老師', 'teacher'] },
+        { label: '搜查官', aliases: ['搜查官', '捜査官', '搜査官'] },
+        { label: '偶像', aliases: ['偶像', 'idol'] },
+        { label: '医生', aliases: ['医生', '醫生', 'doctor'] },
+        { label: '空姐', aliases: ['空姐', 'ca', 'cabinattendant'] },
+        { label: '情侣', aliases: ['情侣', '情侶', 'couple'] },
+        { label: '人妻', aliases: ['人妻'] },
+        { label: '逃犯', aliases: ['逃犯'] },
+        { label: '球队经理', aliases: ['球队经理', '球隊經理', '经理'] },
+        { label: '家政妇', aliases: ['家政妇', '家政婦'] },
+        { label: '主播', aliases: ['主播'] },
+        { label: '护士', aliases: ['护士', '護士', 'nurse'] },
+        { label: '未亡人', aliases: ['未亡人'] },
+        { label: '家庭教师', aliases: ['家庭教师', '家庭教師'] },
+        { label: 'OL', aliases: ['ol'] },
+        { label: '魔镜号', aliases: ['魔镜号', '魔鏡號'] },
+        { label: '温泉', aliases: ['温泉', '溫泉'] },
+        { label: '旅馆', aliases: ['旅馆', '旅館', '旅店'] },
+        { label: '办公室', aliases: ['办公室', '辦公室', 'office'] },
+        { label: '厕所', aliases: ['厕所', '廁所'] },
+        { label: '便利店', aliases: ['便利店', '便利商店'] },
+        { label: '电车', aliases: ['电车', '電車'] },
+        { label: '洗浴场', aliases: ['洗浴场', '洗浴場', '澡堂'] },
+        { label: '浴室', aliases: ['浴室', '風呂', '风吕'] },
+        { label: '学校', aliases: ['学校', '學校'] },
+        { label: '虚女', aliases: ['虚女', '處女', '处女'] },
+        { label: '泳池', aliases: ['泳池', '游池', '游泳池'] },
+        { label: '图书馆', aliases: ['图书馆', '圖書館'] },
+        { label: '监狱', aliases: ['监狱', '監獄'] },
+        { label: '汽车', aliases: ['汽车', '汽車', '车内', '車內'] },
+        { label: '健身房', aliases: ['健身房'] },
+        { label: '中字', aliases: ['中字', '中文字幕'] },
+        { label: '无码', aliases: ['无码', '無碼', 'uncensored'] },
+        { label: '破解', aliases: ['破解', '解密'] },
+        { label: '流出', aliases: ['流出', 'leak'] },
+    ];
+    const renameKeywordOrder = new Map(renameKeywordDefinitions.map((def, index) => [def.label, index]));
+
+    function normalizeKeywordToken(text) {
+        return (text || '')
+            .toString()
+            .toLowerCase()
+            .replace(/[＃#]/g, '')
+            .replace(/[\s_\-()[\]{}]+/g, '');
+    }
+
+    function keywordAliasMatchesText(text, alias) {
+        const raw = (text || '').toString();
+        const aliasRaw = (alias || '').toString();
+        if (!raw || !aliasRaw) return false;
+
+        // ASCII aliases must match as standalone tokens to avoid false positives like "OL".
+        if (/^[a-z0-9]+$/i.test(aliasRaw)) {
+            const loweredAlias = aliasRaw.toLowerCase();
+            const loweredText = raw.toLowerCase();
+            const tokens = loweredText.split(/[^a-z0-9]+/).filter(Boolean);
+            return tokens.includes(loweredAlias);
+        }
+
+        return normalizeKeywordToken(raw).includes(normalizeKeywordToken(aliasRaw));
+    }
+
+    function extractKeywordsFromText(text) {
+        if (!text) return [];
+        return renameKeywordDefinitions
+            .filter(def => def.aliases.some(alias => keywordAliasMatchesText(text, alias)))
+            .map(def => def.label);
+    }
+
+    const aggressiveTitleKeywordDefinitions = [
+        { label: '老师', aliases: ['教師', '女教師', '先生'] },
+        { label: '护士', aliases: ['看護師', 'ナース'] },
+        { label: '医生', aliases: ['医師', '女医'] },
+        { label: '家政妇', aliases: ['家政婦'] },
+        { label: '女上司', aliases: ['女上司', '上司'] },
+        { label: '痴汉', aliases: ['痴漢'] },
+        { label: '调教', aliases: ['調教'] },
+        { label: '诱惑', aliases: ['誘惑'] },
+        { label: '复仇', aliases: ['復讐'] },
+        { label: '出轨', aliases: ['不倫', '浮気'] },
+        { label: 'NTR', aliases: ['寝取られ', '寝取り'] },
+        { label: '校服', aliases: ['学生服', 'セーラー服', 'ブレザー', '制服'] },
+        { label: '女仆', aliases: ['メイド'] },
+        { label: '水着', aliases: ['水着'] },
+        { label: '和服', aliases: ['着物'] },
+        { label: 'Cosplay', aliases: ['コスプレ'] },
+        { label: '兔女郎', aliases: ['バニー'] },
+        { label: '黑丝', aliases: ['黒ストッキング', '黒タイツ'] },
+        { label: '丝袜', aliases: ['ストッキング'] },
+        { label: '过膝袜', aliases: ['ニーハイ'] },
+        { label: '巨乳', aliases: ['巨乳', '乳房', '爆乳', '美乳', '発育'] },
+        { label: '贫乳', aliases: ['貧乳', '微乳'] },
+        { label: '少女', aliases: ['思春期', '女子校生', 'JK', '教え子'] },
+        { label: '亲属', aliases: ['義父', '義母', '義兄', '義弟', '義姉', '義妹', '継父', '継母', '叔父', '叔母', '兄嫁', '弟嫁'] },
+        { label: '潮吹', aliases: ['潮吹き'] },
+        { label: '口交', aliases: ['フェラ'] },
+        { label: '脚交', aliases: ['足コキ'] },
+        { label: '乳交', aliases: ['パイズリ'] },
+        { label: '肛交', aliases: ['アナル'] },
+        { label: '接吻', aliases: ['キス'] },
+        { label: '中出', aliases: ['中出し'] },
+        { label: '露出', aliases: ['露出'] },
+        { label: '催眠', aliases: ['催眠'] },
+        { label: '媚药', aliases: ['媚薬'] },
+        { label: '偷拍', aliases: ['盗撮'] },
+    ];
+
+    const titleFallbackKeywordDefinitions = [
+        { label: '熟女', aliases: ['お母さん'] },
+        { label: '人妻', aliases: ['妻', '人妻', '貞淑妻', 'お母さん', '奥様', '若奥様'] },
+        { label: '美尻', aliases: ['痴尻', 'デカ尻', '尻'] },
+        { label: '性爱', aliases: ['セックス', 'FUCK'] },
+        { label: '凌辱', aliases: ['犯した', '犯され', '犯●れて', 'レイプ'] },
+        { label: 'NTR', aliases: ['寝取らせ', '寝取られ', '寝取り'] },
+        { label: '肛交', aliases: ['アナル', 'アナルーム'] },
+        { label: '自拍', aliases: ['ハメ撮り', '自撮り'] },
+        { label: '夫目前犯', aliases: ['夫の目の前'] },
+        { label: '痴女', aliases: ['性欲モンスター', '弄ばれて', '小悪魔'] },
+        { label: '软体', aliases: ['軟体', '軟体披露', 'バレリーナ'] },
+        { label: '上京生活', aliases: ['上京生活', '上京性生活'] },
+        { label: '精液检查', aliases: ['精液検査'] },
+        { label: '美女', aliases: ['美女', '絶世美女'] },
+        { label: '射精', aliases: ['射精', 'ピュッピュ', '暴発'] },
+        { label: '无胸罩', aliases: ['ノーブラ'] },
+        { label: '乳头', aliases: ['乳首', 'びんびん'] },
+        { label: 'OL', aliases: ['女子社員', '社員'] },
+        { label: '女上司', aliases: ['マネージャー', '女神マネージャー'] },
+        { label: '巨根', aliases: ['デカチン', '巨根'] },
+        { label: '羞耻', aliases: ['羞恥'] },
+        { label: '腰技', aliases: ['腰使い'] },
+        { label: '巨乳', aliases: ['Kカップ', '爆乳'] },
+        { label: '高潮', aliases: ['アクメ', '絶頂', 'イキ'] },
+        { label: '天然', aliases: ['天然'] },
+        { label: '运动', aliases: ['スポーツ'] },
+        { label: '露出', aliases: ['全裸'] },
+        { label: '痴汉', aliases: ['痴●'] },
+        { label: '通勤', aliases: ['通勤'] },
+        { label: '高潮', aliases: ['快楽堕ち'] },
+    ];
+
+    function mergeKeywordsBySource(...lists) {
+        const merged = [];
+        const seen = new Set();
+        for (const list of lists) {
+            for (const keyword of list || []) {
+                const key = normalizeKeywordToken(keyword);
+                if (!key || seen.has(key)) continue;
+                seen.add(key);
+                merged.push(keyword);
+            }
+        }
+        return merged;
+    }
+
+    function extractAggressiveKeywordsFromTitle(title) {
+        if (!title) return [];
+        return aggressiveTitleKeywordDefinitions
+            .filter(def => def.aliases.some(alias => keywordAliasMatchesText(title, alias)))
+            .map(def => def.label);
+    }
+
+    function extractFallbackKeywordsFromTitle(title) {
+        if (!title) return [];
+        return titleFallbackKeywordDefinitions
+            .filter(def => def.aliases.some(alias => keywordAliasMatchesText(title, alias)))
+            .map(def => def.label);
+    }
+
+    function mergeKeywords(...lists) {
+        const merged = [];
+        const seen = new Set();
+        for (const list of lists) {
+            for (const keyword of list || []) {
+                const key = normalizeKeywordToken(keyword);
+                if (!key || seen.has(key)) continue;
+                seen.add(key);
+                merged.push(keyword);
+            }
+        }
+        return merged.sort((a, b) => {
+            const ai = renameKeywordOrder.get(a);
+            const bi = renameKeywordOrder.get(b);
+            if (ai == null && bi == null) return 0;
+            if (ai == null) return 1;
+            if (bi == null) return -1;
+            return ai - bi;
+        });
+    }
+
+    function extractKeywordsFromDocument(doc) {
+        if (!doc) return [];
+
+        const texts = [];
+        const selectors = [
+            'a[rel~="tag"]',
+            '.tags a',
+            '.tag a',
+            '.tags-links a',
+            '.entry-tags a',
+            '.entry-meta a',
+            '.cat-links a',
+            '.entry-categories a',
+            '.taxonomy-post_tag a',
+            '.taxonomy-product_tag a',
+        ];
+
+        for (const selector of selectors) {
+            for (const node of doc.querySelectorAll(selector)) {
+                const text = node.textContent?.trim();
+                if (text) texts.push(text);
+            }
+        }
+
+        return mergeKeywords(...texts.map(extractKeywordsFromText));
+    }
+
+    function collectRenameKeywords(fileName, title, pageKeywords) {
+        const page = Array.isArray(pageKeywords) ? pageKeywords : [];
+        const titleKeywords = extractKeywordsFromText(title);
+        const fileKeywords = extractKeywordsFromText(fileName);
+        const aggressiveTitleKeywords = extractAggressiveKeywordsFromTitle(title);
+        const mergedKeywords = mergeKeywordsBySource(page, titleKeywords, fileKeywords, aggressiveTitleKeywords);
+        const fallbackTitleKeywords = mergedKeywords.length >= 3 ? [] : extractFallbackKeywordsFromTitle(title);
+        return mergeKeywordsBySource(mergedKeywords, fallbackTitleKeywords);
+    }
+
+    function stripLeadingNumberFromTitle(number, title) {
+        const rawTitle = (title || '').trim();
+        if (!number || !rawTitle) return rawTitle;
+        const parts = parseNumberParts(number);
+        if (!parts) return rawTitle;
+
+        const escapedSeries = parts.series.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedNoPad = String(parts.num).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedRaw = parts.numRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const numberPattern = `(?:${escapedSeries}[-_ ]*0*${escapedNoPad}|${escapedSeries}[-_ ]*${escapedRaw})`;
+        const leadingPattern = new RegExp(`^[\\s\\[\\(【［「『<]*${numberPattern}[\\s\\]\\)】］」』>.:：-]*`, 'i');
+
+        let cleanTitle = rawTitle;
+        for (let i = 0; i < 3; i++) {
+            const nextTitle = cleanTitle.replace(leadingPattern, '').trim();
+            if (nextTitle === cleanTitle) break;
+            cleanTitle = nextTitle;
+        }
+        return cleanTitle;
+    }
+
+    function buildRenamedFileName(number, title, date, keywords, ext, config) {
+        const prefixParts = [];
+        if (number) prefixParts.push(number);
+        const cleanTitle = stripLeadingNumberFromTitle(number, title);
+        const limitedKeywords = keywords.slice(0, 3);
+        if (limitedKeywords.length > 0) prefixParts.push(limitedKeywords.map(keyword => `[${keyword}]`).join(''));
+        const nameParts = [...prefixParts, cleanTitle].filter(Boolean);
+        const finalName = nameParts.join(' ');
+        return ext ? `${finalName}${ext}` : finalName;
     }
 
     // ─── PikPak API ───
@@ -334,9 +680,10 @@
             doc.querySelector('time.date.published')?.getAttribute('datetime') ||
             doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content')?.slice(0, 10) ||
             null;
+        const keywords = extractKeywordsFromDocument(doc);
         if (name) name = name.trim();
         if (name) name = name.replace(/[\/:*?"<>|\x00-\x1F]/g, '_');
-        return { title: name, date };
+        return { title: name, date, keywords };
     }
 
     function buildDirectUrl(keyword) { return `https://av-wiki.net/${keyword.toLowerCase()}/`; }
@@ -459,9 +806,9 @@
             debugRawHtml('direct', directUrl, directResp);
             if (directResp.status !== 200) continue;
 
-            const { title, date } = parseDetailPage(directResp.responseText);
-            debugLog('direct-parse', { number: parsed.number, directUrl, title, date });
-            if (title && containsExpectedNumber(title, parsed.number)) return { title, date };
+            const { title, date, keywords } = parseDetailPage(directResp.responseText);
+            debugLog('direct-parse', { number: parsed.number, directUrl, title, date, keywords });
+            if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
         }
 
         // Fallback: search
@@ -485,9 +832,9 @@
                 const detailResp = await httpRequest({ url: link });
                 debugRawHtml('search-detail', link, detailResp);
                 if (detailResp.status === 200) {
-                    const { title, date } = parseDetailPage(detailResp.responseText);
-                    debugLog('search-detail-parse', { link, title, date });
-                    if (title && containsExpectedNumber(title, parsed.number)) return { title, date };
+                    const { title, date, keywords } = parseDetailPage(detailResp.responseText);
+                    debugLog('search-detail-parse', { link, title, date, keywords });
+                    if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
                 }
             }
         }
@@ -497,7 +844,7 @@
     // ─── Config ───
 
     const CONFIG_KEY = 'pikpak-batch-renamer-config';
-    const defaultConfig = { addDatePrefix: false, fixFileExtension: true, sortBy: 'name', sortDir: 'asc' };
+    const defaultConfig = { fixFileExtension: true, sortBy: 'name', sortDir: 'asc' };
     const getConfig = () => { try { return { ...defaultConfig, ...JSON.parse(localStorage.getItem(CONFIG_KEY)) }; } catch { return { ...defaultConfig }; } };
     const setConfig = c => localStorage.setItem(CONFIG_KEY, JSON.stringify(c));
 
@@ -520,8 +867,6 @@
             scanning: '扫描中...',
             scanCodes: '扫描番号',
             config: '配置选项',
-            addDatePrefix: '在文件名开头增加发行日期',
-            addDatePrefixDesc: '启用后文件名格式为: 2025-09-12 标题名称.mp4',
             fixExt: '修复文件扩展名',
             fixExtDesc: '当文件缺少扩展名时，根据文件名信息自动补充',
             aboutToRename: n => `即将重命名 ${n} 个文件，请确认后继续。`,
@@ -553,8 +898,6 @@
             scanning: 'Scanning...',
             scanCodes: 'Scan Codes',
             config: 'Settings',
-            addDatePrefix: 'Prepend release date to filename',
-            addDatePrefixDesc: 'Format: 2025-09-12 Title.mp4',
             fixExt: 'Fix file extension',
             fixExtDesc: 'Auto-add extension when missing based on file info',
             aboutToRename: n => `About to rename ${n} file(s). Please confirm.`,
@@ -650,6 +993,29 @@
 
     const delay = ms => new Promise(r => setTimeout(r, ms));
 
+    async function trashFolderWhenEmpty(folderId, options = {}) {
+        const {
+            maxAttempts = 3,
+            retryDelayMs = 800,
+            listFolder = getList,
+            trashFolder = trashFiles,
+            wait = delay,
+        } = options;
+
+        let remaining = [];
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const resp = await listFolder(folderId);
+            remaining = Array.isArray(resp?.files) ? resp.files : [];
+            if (remaining.length === 0) {
+                await trashFolder([folderId]);
+                return { deleted: true, attempts: attempt, remainingCount: 0 };
+            }
+            if (attempt < maxAttempts) await wait(retryDelayMs);
+        }
+
+        return { deleted: false, attempts: maxAttempts, remainingCount: remaining.length };
+    }
+
     function getFileSize(file) {
         return parseInt(file?.size || '0', 10) || 0;
     }
@@ -670,13 +1036,6 @@
         const toggle = key => { const c = { ...config, [key]: !config[key] }; setConfig(c); onChange(c); };
         return html`
             <div style="padding:12px;background:#f8f9fa;border-radius:6px;margin-bottom:16px;border-top:1px solid #ebeef5">
-                <label style="display:flex;align-items:center;cursor:pointer;padding:4px 0">
-                    <input type="checkbox" checked=${config.addDatePrefix} onChange=${() => toggle('addDatePrefix')} style="margin-right:8px" />
-                    <span style="font-size:14px">${t('addDatePrefix')}</span>
-                </label>
-                <div style="font-size:12px;color:${colors.secondary};margin-left:24px;margin-bottom:8px">
-                    ${t('addDatePrefixDesc')}
-                </div>
                 <label style="display:flex;align-items:center;cursor:pointer;padding:4px 0">
                     <input type="checkbox" checked=${config.fixFileExtension} onChange=${() => toggle('fixFileExtension')} style="margin-right:8px" />
                     <span style="font-size:14px">${t('fixExt')}</span>
@@ -813,8 +1172,9 @@
                             const m = file.mime_type.match(/\/([a-z0-9]+)/);
                             if (m) ext = '.' + m[1];
                         }
-                        const finalName = config.addDatePrefix && info.date ? (info.date + ' ' + info.title) : info.title;
-                        names[file.id] = ext ? (finalName + ext) : finalName;
+                        const pageKeywords = Array.isArray(info.keywords) ? info.keywords : [];
+                        const finalKeywords = collectRenameKeywords(file.name, info.title, pageKeywords);
+                        names[file.id] = buildRenamedFileName(parsed.number, info.title, info.date, finalKeywords, ext, config);
                     } catch (e) {
                         debugLog('validate-miss', { file: file.name, parsed, error: e?.message || String(e) });
                         sts[file.id] = 'invalid';
@@ -1014,10 +1374,8 @@
 
                     for (const folder of group.deleteFolders) {
                         try {
-                            const resp = await getList(folder.folder.id);
-                            const remaining = Array.isArray(resp?.files) ? resp.files : [];
-                            if (remaining.length === 0) {
-                                await trashFiles([folder.folder.id]);
+                            const deleteResult = await trashFolderWhenEmpty(folder.folder.id);
+                            if (deleteResult.deleted) {
                                 folderDeleteSuccess++;
                             } else {
                                 folderDeleteFailed++;
