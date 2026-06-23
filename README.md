@@ -2,6 +2,8 @@
 
 PikPak 网页端批量处理助手，专门用来处理番号重命名、小文件清理和子文件夹拆分。
 
+修改自- [PikPak 批量番号重命名助手](https://greasyfork.org/zh-CN/scripts/549418-pikpak-batch-jav-renamer-assistant)
+
 ## 重命名亮点
 
 - 支持增加关键词
