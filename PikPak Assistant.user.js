@@ -11,12 +11,12 @@
 // @name:fr      PikPak Renommeur JAV par lots
 // @name:de      PikPak JAV-Batch-Umbenennung
 // @namespace    https://github.com/CheerChen
-// @version      0.1.4
+// @version      0.1.5
 // @description  Batch rename video files and folders with JAV codes in PikPak.
 // @description:en Batch rename video files and folders with JAV codes in PikPak.
 // @description:ja Batch rename JAV files in PikPak and clean up small files.
-// @description:zh-CN 在 PikPak 中批量重命名 JAV 文件，并独立清理小于 100MB 的小文件。
-// @description:zh-TW 在 PikPak 中批次重新命名 JAV 檔案，並獨立清理小於 100MB 的小檔案。
+// @description:zh-CN 在 PikPak 中批量重命名 JAV 文件，并独立清理小于 300MB 的小文件。
+// @description:zh-TW 在 PikPak 中批次重新命名 JAV 檔案，並獨立清理小於 300MB 的小檔案。
 // @description:ko Batch rename JAV files in PikPak and clean up small files.
 // @description:ru Batch rename JAV files in PikPak and clean up small files.
 // @description:es Renombrar archivos JAV por lotes en PikPak y limpiar archivos pequeños.
@@ -62,7 +62,7 @@
     const standardRe = /^\d*([a-zA-Z]{2,6})(\d{3,6})(?:\D|$)/i;
     const DEBUG_KEY = 'pikpak-batch-renamer-debug';
     const FLOAT_BUTTON_POS_KEY = 'pikpak-batch-renamer-fab-pos';
-    const SMALL_FILE_THRESHOLD_BYTES = 100 * 1024 * 1024;
+    const SMALL_FILE_THRESHOLD_BYTES = 300 * 1024 * 1024;
     const commonDomainTokenRe = /^(com|net|org|me|cn|jp|tv|xyz|club)$/i;
 
     const DEBUG_ENABLED = (() => {
@@ -1064,7 +1064,7 @@
         renameResultSummary: rename => '重命名完成。成功 ' + rename.success + '，失败 ' + rename.failed + '，总计 ' + rename.total + '。',
         cleanupResultSummary: trash => '清理完成。成功 ' + trash.success + '，失败 ' + trash.failed + '，总计 ' + trash.total + '。',
         noRenameTargets: '当前选中的项目里没有扫描到可重命名的番号文件。',
-        noSmallFiles: '当前选中的文件或文件夹里没有小于 100MB 的普通文件。',
+        noSmallFiles: '当前选中的文件或文件夹里没有小于 300MB 的普通文件。',
         trashFailed: code => '删除失败 (' + code + ')',
     });
     Object.assign(i18n.en, {
@@ -1084,7 +1084,7 @@
         renameResultSummary: rename => 'Rename finished. Success: ' + rename.success + ', Failed: ' + rename.failed + ', Total: ' + rename.total + '.',
         cleanupResultSummary: trash => 'Cleanup finished. Success: ' + trash.success + ', Failed: ' + trash.failed + ', Total: ' + trash.total + '.',
         noRenameTargets: 'No renameable code-matched files were found in the current selection.',
-        noSmallFiles: 'No regular files smaller than 100MB were found in the current selection.',
+        noSmallFiles: 'No regular files smaller than 300MB were found in the current selection.',
         trashFailed: code => 'Trash failed (' + code + ')',
     });
     Object.assign(i18n.zh, {
