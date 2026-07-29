@@ -33,6 +33,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
 // @connect      av-wiki.net
+// @connect      sukebei.nyaa.si
 // @connect      api-drive.mypikpak.com
 // @icon         https://www.google.com/s2/favicons?domain=mypikpak.com
 // @license      MIT
@@ -796,49 +797,111 @@
         return links;
     }
 
+    function buildSukebeiSearchUrl(number) {
+        return `https://sukebei.nyaa.si/?f=0&c=0_0&q=${encodeURIComponent(number)}&s=seeders&o=desc`;
+    }
+
+    function containsExactNumber(text, number) {
+        const parts = parseNumberParts(number);
+        if (!parts) return false;
+
+        const series = parts.series.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const numeric = String(parts.num).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(`(?:^|[^a-z0-9])(?:\\d{3,4})?${series}[-_ ]*0*${numeric}(?!\\d)`, 'i');
+        return pattern.test(text || '');
+    }
+
+    function cleanSukebeiTitle(rawTitle, number) {
+        const title = (rawTitle || '').replace(/\s+/g, ' ').trim();
+        if (!title) return '';
+
+        const parts = parseNumberParts(number);
+        if (!parts) return title.replace(/[\\/:*?"<>|\x00-\x1F]/g, '_');
+
+        const series = parts.series.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const numeric = String(parts.num).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const numberPattern = new RegExp(`(?:\\d{3,4})?${series}[-_ ]*0*${numeric}(?!\\d)`, 'i');
+        const match = numberPattern.exec(title);
+        const fromNumber = match ? title.slice(match.index) : title;
+
+        return fromNumber
+            .replace(/[\\/:*?"<>|\x00-\x1F]/g, '_')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function extractSukebeiTitle(doc, number) {
+        const rows = doc.querySelectorAll('table.torrent-list tbody tr, table.torrent-list tr');
+        for (const row of rows) {
+            const link = row.querySelector('a[href^="/view/"]');
+            const rawTitle = link?.textContent?.trim();
+            if (!rawTitle || !containsExactNumber(rawTitle, number)) continue;
+            return cleanSukebeiTitle(rawTitle, number);
+        }
+        return '';
+    }
+
+    async function querySukebeiNyaa(parsed) {
+        const searchUrl = buildSukebeiSearchUrl(parsed.number);
+        const response = await httpRequest({ url: searchUrl });
+        if (response.status !== 200) throw new Error('Not found');
+
+        const doc = new DOMParser().parseFromString(response.responseText, 'text/html');
+        const title = extractSukebeiTitle(doc, parsed.number);
+        debugLog('sukebei-search', { number: parsed.number, searchUrl, title });
+        if (!title) throw new Error('Not found');
+
+        // Sukebei 的种子标题没有可靠的结构化标签或日期，只作为 AV-Wiki 失败后的标题兜底。
+        return { title, date: null, keywords: [] };
+    }
+
     async function queryAVwiki(parsed) {
         if (!parsed.number) throw new Error('No number');
 
-        const directUrls = buildDirectUrlCandidates(parsed);
-        debugLog('direct-candidates', { number: parsed.number, rawNumber: parsed.rawNumber, directUrls });
-        for (const directUrl of directUrls) {
-            const directResp = await httpRequest({ url: directUrl });
-            debugRawHtml('direct', directUrl, directResp);
-            if (directResp.status !== 200) continue;
+        try {
+            const directUrls = buildDirectUrlCandidates(parsed);
+            debugLog('direct-candidates', { number: parsed.number, rawNumber: parsed.rawNumber, directUrls });
+            for (const directUrl of directUrls) {
+                const directResp = await httpRequest({ url: directUrl });
+                debugRawHtml('direct', directUrl, directResp);
+                if (directResp.status !== 200) continue;
 
-            const { title, date, keywords } = parseDetailPage(directResp.responseText);
-            debugLog('direct-parse', { number: parsed.number, directUrl, title, date, keywords });
-            if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
-        }
+                const { title, date, keywords } = parseDetailPage(directResp.responseText);
+                debugLog('direct-parse', { number: parsed.number, directUrl, title, date, keywords });
+                if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
+            }
 
-        // Fallback: search
-        const searchTerms = buildSearchTerms(parsed);
-        debugLog('search-terms', { number: parsed.number, rawNumber: parsed.rawNumber, searchTerms });
-        for (const searchTerm of searchTerms) {
-            const searchUrl = buildSearchUrl(searchTerm);
-            const searchResp = await httpRequest({ url: searchUrl });
-            debugRawHtml('search', searchUrl, searchResp);
-            const doc = new DOMParser().parseFromString(searchResp.responseText, 'text/html');
+            const searchTerms = buildSearchTerms(parsed);
+            debugLog('search-terms', { number: parsed.number, rawNumber: parsed.rawNumber, searchTerms });
+            for (const searchTerm of searchTerms) {
+                const searchUrl = buildSearchUrl(searchTerm);
+                const searchResp = await httpRequest({ url: searchUrl });
+                debugRawHtml('search', searchUrl, searchResp);
+                const doc = new DOMParser().parseFromString(searchResp.responseText, 'text/html');
 
-            const links = extractSearchResultLinks(doc);
-            debugLog('search-candidates', { number: parsed.number, searchTerm, links });
+                const links = extractSearchResultLinks(doc);
+                debugLog('search-candidates', { number: parsed.number, searchTerm, links });
 
-            for (const link of links) {
-                const slug = extractSlug(link);
-                const matchedBySlug = isSameNumberBySlug(slug, parsed.number);
-                debugLog('search-link-check', { link, slug, number: parsed.number, searchTerm, matchedBySlug });
-                if (!matchedBySlug) continue;
+                for (const link of links) {
+                    const slug = extractSlug(link);
+                    const matchedBySlug = isSameNumberBySlug(slug, parsed.number);
+                    debugLog('search-link-check', { link, slug, number: parsed.number, searchTerm, matchedBySlug });
+                    if (!matchedBySlug) continue;
 
-                const detailResp = await httpRequest({ url: link });
-                debugRawHtml('search-detail', link, detailResp);
-                if (detailResp.status === 200) {
-                    const { title, date, keywords } = parseDetailPage(detailResp.responseText);
-                    debugLog('search-detail-parse', { link, title, date, keywords });
-                    if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
+                    const detailResp = await httpRequest({ url: link });
+                    debugRawHtml('search-detail', link, detailResp);
+                    if (detailResp.status === 200) {
+                        const { title, date, keywords } = parseDetailPage(detailResp.responseText);
+                        debugLog('search-detail-parse', { link, title, date, keywords });
+                        if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
+                    }
                 }
             }
+        } catch (e) {
+            debugLog('avwiki-query-failed', { number: parsed.number, error: e?.message || String(e) });
         }
-        throw new Error('Not found');
+
+        return querySukebeiNyaa(parsed);
     }
 
     // ─── Config ───
