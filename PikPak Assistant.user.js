@@ -11,7 +11,7 @@
 // @name:fr      PikPak Renommeur JAV par lots
 // @name:de      PikPak JAV-Batch-Umbenennung
 // @namespace    https://github.com/CheerChen
-// @version      0.1.3
+// @version      0.1.4
 // @description  Batch rename video files and folders with JAV codes in PikPak.
 // @description:en Batch rename video files and folders with JAV codes in PikPak.
 // @description:ja Batch rename JAV files in PikPak and clean up small files.
@@ -33,6 +33,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
 // @connect      av-wiki.net
+// @connect      www.javrate.com
 // @connect      sukebei.nyaa.si
 // @connect      api-drive.mypikpak.com
 // @icon         https://www.google.com/s2/favicons?domain=mypikpak.com
@@ -531,13 +532,16 @@
         return mergeKeywords(...texts.map(extractKeywordsFromText));
     }
 
-    function collectRenameKeywords(fileName, title, pageKeywords) {
+    function collectRenameKeywords(fileName, title, pageKeywords, additionalTitles = []) {
         const page = Array.isArray(pageKeywords) ? pageKeywords : [];
-        const titleKeywords = extractKeywordsFromText(title);
+        const titles = [title, ...(Array.isArray(additionalTitles) ? additionalTitles : [])].filter(Boolean);
+        const titleKeywords = mergeKeywordsBySource(...titles.map(extractKeywordsFromText));
         const fileKeywords = extractKeywordsFromText(fileName);
-        const aggressiveTitleKeywords = extractAggressiveKeywordsFromTitle(title);
+        const aggressiveTitleKeywords = mergeKeywordsBySource(...titles.map(extractAggressiveKeywordsFromTitle));
         const mergedKeywords = mergeKeywordsBySource(page, titleKeywords, fileKeywords, aggressiveTitleKeywords);
-        const fallbackTitleKeywords = mergedKeywords.length >= 3 ? [] : extractFallbackKeywordsFromTitle(title);
+        const fallbackTitleKeywords = mergedKeywords.length >= 3
+            ? []
+            : mergeKeywordsBySource(...titles.map(extractFallbackKeywordsFromTitle));
         return mergeKeywordsBySource(mergedKeywords, fallbackTitleKeywords);
     }
 
@@ -797,6 +801,43 @@
         return links;
     }
 
+    function buildJavRateSearchUrl(number) {
+        return `https://www.javrate.com/search/${encodeURIComponent(number.toLowerCase())}`;
+    }
+
+    function extractJavRateKeywords(doc) {
+        const rawKeywords = [...doc.querySelectorAll('#movieKeywords a.keyword-tag-link[data-keyword-name]')]
+            .map(node => node.getAttribute('data-keyword-name')?.trim() || node.textContent?.trim() || '')
+            .filter(Boolean);
+        const knownKeywords = mergeKeywords(...rawKeywords.map(extractKeywordsFromText));
+        const rawFallbackKeywords = rawKeywords
+            .filter(keyword => extractKeywordsFromText(keyword).length === 0)
+            .map(keyword => keyword.replace(/[\\/:*?"<>|\x00-\x1F]/g, '_').replace(/\s+/g, ' ').trim())
+            .filter(keyword => keyword.length >= 2 && keyword.length <= 16);
+        return mergeKeywordsBySource(knownKeywords, rawFallbackKeywords);
+    }
+
+    async function queryJavRateMetadata(parsed) {
+        const searchUrl = buildJavRateSearchUrl(parsed.number);
+        const searchResp = await httpRequest({ url: searchUrl });
+        if (searchResp.status !== 200) throw new Error('Not found');
+
+        const searchDoc = new DOMParser().parseFromString(searchResp.responseText, 'text/html');
+        const result = [...searchDoc.querySelectorAll('a.movie-card-link[data-movie-code]')]
+            .find(link => containsExactNumber(link.getAttribute('data-movie-code') || '', parsed.number));
+        if (!result) throw new Error('Not found');
+
+        const detailUrl = new URL(result.getAttribute('href'), 'https://www.javrate.com/').href;
+        const detailResp = await httpRequest({ url: detailUrl });
+        if (detailResp.status !== 200) throw new Error('Not found');
+
+        const detailDoc = new DOMParser().parseFromString(detailResp.responseText, 'text/html');
+        const title = (result.getAttribute('title') || '').replace(/[\\/:*?"<>|\x00-\x1F]/g, '_').trim();
+        const keywords = extractJavRateKeywords(detailDoc);
+        debugLog('javrate-parse', { number: parsed.number, searchUrl, detailUrl, title, keywords });
+        return { title, date: null, keywords };
+    }
+
     function buildSukebeiSearchUrl(number) {
         return `https://sukebei.nyaa.si/?f=0&c=0_0&q=${encodeURIComponent(number)}&s=seeders&o=desc`;
     }
@@ -851,8 +892,31 @@
         debugLog('sukebei-search', { number: parsed.number, searchUrl, title });
         if (!title) throw new Error('Not found');
 
-        // Sukebei 的种子标题没有可靠的结构化标签或日期，只作为 AV-Wiki 失败后的标题兜底。
+        // Sukebei 的种子标题没有可靠的结构化标签或日期，可作为 AV-Wiki 查询或标签缺失时的兜底。
         return { title, date: null, keywords: [] };
+    }
+
+    async function enrichAVwikiWithFallbackTags(parsed, info) {
+        if (Array.isArray(info.keywords) && info.keywords.length > 0) return info;
+
+        try {
+            const javRate = await queryJavRateMetadata(parsed);
+            if (javRate.keywords.length > 0) {
+                debugLog('javrate-tag-fallback-hit', { number: parsed.number, keywords: javRate.keywords });
+                return { ...info, keywords: javRate.keywords };
+            }
+        } catch (e) {
+            debugLog('javrate-tag-fallback-miss', { number: parsed.number, error: e?.message || String(e) });
+        }
+
+        try {
+            const sukebei = await querySukebeiNyaa(parsed);
+            debugLog('sukebei-tag-fallback-hit', { number: parsed.number, title: sukebei.title });
+            return { ...info, additionalTitles: [sukebei.title] };
+        } catch (e) {
+            debugLog('sukebei-tag-fallback-miss', { number: parsed.number, error: e?.message || String(e) });
+            return info;
+        }
     }
 
     async function queryAVwiki(parsed) {
@@ -868,7 +932,7 @@
 
                 const { title, date, keywords } = parseDetailPage(directResp.responseText);
                 debugLog('direct-parse', { number: parsed.number, directUrl, title, date, keywords });
-                if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
+                if (title && containsExpectedNumber(title, parsed.number)) return enrichAVwikiWithFallbackTags(parsed, { title, date, keywords });
             }
 
             const searchTerms = buildSearchTerms(parsed);
@@ -893,7 +957,7 @@
                     if (detailResp.status === 200) {
                         const { title, date, keywords } = parseDetailPage(detailResp.responseText);
                         debugLog('search-detail-parse', { link, title, date, keywords });
-                        if (title && containsExpectedNumber(title, parsed.number)) return { title, date, keywords };
+                        if (title && containsExpectedNumber(title, parsed.number)) return enrichAVwikiWithFallbackTags(parsed, { title, date, keywords });
                     }
                 }
             }
@@ -901,7 +965,12 @@
             debugLog('avwiki-query-failed', { number: parsed.number, error: e?.message || String(e) });
         }
 
-        return querySukebeiNyaa(parsed);
+        try {
+            return await queryJavRateMetadata(parsed);
+        } catch (e) {
+            debugLog('javrate-query-failed', { number: parsed.number, error: e?.message || String(e) });
+            return querySukebeiNyaa(parsed);
+        }
     }
 
     // ─── Config ───
@@ -1236,7 +1305,8 @@
                             if (m) ext = '.' + m[1];
                         }
                         const pageKeywords = Array.isArray(info.keywords) ? info.keywords : [];
-                        const finalKeywords = collectRenameKeywords(file.name, info.title, pageKeywords);
+                        const additionalTitles = Array.isArray(info.additionalTitles) ? info.additionalTitles : [];
+                        const finalKeywords = collectRenameKeywords(file.name, info.title, pageKeywords, additionalTitles);
                         names[file.id] = buildRenamedFileName(parsed.number, info.title, info.date, finalKeywords, ext, config);
                     } catch (e) {
                         debugLog('validate-miss', { file: file.name, parsed, error: e?.message || String(e) });
